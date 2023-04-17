@@ -1,0 +1,325 @@
+;FUNCTIONS
+;				CreateClass(), NameClass()
+;
+;AUTHOR			André Luiz
+;
+;ACTION
+;	Create class in kixtart
+;
+;SYNTAX
+;
+;	$Class__myClass = CreateClass("NameClass", 'CODE')
+;	$myClass = NewClass($Class__myClass)
+;
+;VERSION		1.0.0.0
+;DATE CREATED	30/08/2019
+;DATE MODIFIED	30/08/2019
+;
+;PARAMETERS 	
+;				Parameter 1
+;				{THE TYPES DESCRIBED IN THEIR RESPECTIVE FUNCTION}
+;
+;				Parameter 2
+;				{THE TYPES DESCRIBED IN THEIR RESPECTIVE FUNCTION}
+;
+;REMARKS
+;	Feeling the need to create classes in KiXtart, so I tried to make it possible.
+;	Obs: (That was the only text I remember had in the UDF from where I took this converter from Kix to VBS.)
+;			-Based on Jooel's VBS2Kix Script.
+;
+;DEPENDENCIES 	None
+;
+;KIXTART VER	4.67.
+;
+;EXAMPLE:
+;
+;$Class__StrBuilder = IncludeClass("StrBuilder", "Class__StringBuilder.kix")
+;OR
+;$Class__StrBuilder = CreateClass("StrBuilder", '
+;		private $mystring[]
+;		private $last
+;		
+;		public sub Class_Initialize()
+;			$last = -1
+;		endsub
+;		
+;		function Append($value)
+;			$last = $last + 1
+;			redim preserve $mystring[$last]
+;			$mystring[$last] = $value
+;		endfunction
+;		
+;		function Replace($value1, $value2)
+;			dim $i
+;			for $i=0 to $last
+;				if instrRev($mystring[$i], $value1)
+;					; $mystring[$i] = replace($mystring[$i], $value1, $value2)
+;					$mystring[$i] = join(split($mystring[$i], $value1), $value2)
+;				endif
+;			next
+;		endfunction
+;		
+;		function Clear()
+;			redim $mystring[0]
+;			$last = -1
+;		endfunction
+;		
+;		function Length()
+;			$Length = Len(ToString())
+;		endfunction
+;		
+;		function ToString()
+;			$ToString = Join($mystring, "")
+;		endfunction
+;	')
+;
+;$str = NewClass($Class__StrBuilder)
+;for $i=0 to 3000
+;	$str.append('	function Clear()
+;			redim $mystring[0]
+;			$last = -1
+;		endfunction
+;		
+;		function Length()
+;			$Length = Len(ToString())
+;		endfunction
+;		
+;		function ToString()
+;			$ToString = Join($mystring, "")
+;		endfunction
+;	')
+;next
+;"Text: " $str.ToString()?
+
+
+function NewClass($Obj)
+	$NewClass = $Obj[0].Eval("New "+$Obj[1])
+endfunction
+
+Function IncludeClass($NameClass, $path)
+	dim $fn, $, $read
+	$fn = freeFileHandle()
+	$ = open($fn, $path)
+	do
+		$read = $read + readLine($fn) + @crlf
+	until (@error <> 0)
+	$ = close($fn)
+	$IncludeClass = CreateClass($NameClass, $read)
+EndFunction
+
+function CreateClass($NameClass, $code)
+	$CreateClass = CreateObject("ScriptControl"), $NameClass
+	$CreateClass[0].Language = "VBScript"
+	$CreateClass[0].addcode(
+		"class "+$NameClass+@crlf+
+			Kix2VBS($code)+@crlf+
+		"end class"
+	)
+	; Kix2VBS($code)
+	; get$ quit
+endfunction
+
+function Kix2VBS($src)
+    ;I really don't remember where I found this UDF, but it's clear that I didn't
+    ;develop it, but I made a few changes in it..
+    dim $, $file, $dst, $Counter,
+		$LineLength, $Line, $String,
+		$t, $u, $Character, $bitDQ,
+		$bitSQ, $block, $but, $ttp, $i, $char
+		
+		dim $tmp
+
+    $src = split($src, @crlf)
+	$u = ubound($src)
+    redim $dst[$u]
+
+    for $=0 to $u
+        $Line=trim($src[$])
+        $String=""
+        $Counter=0
+
+        $Line=Replace($Line, "[", "(")
+        $Line=Replace($Line, "]", ")")
+        $Line=Replace($Line, "@@Error", "Err.Number")
+        $Line=Replace($Line, "@@SError", "Err.Description")
+        $Line=Replace($Line, "EndIf", "End If")
+        $Line=Replace($Line, "EndSub", "End Sub")
+        $Line=Replace($Line, "EndFunction", "End Function")
+        $Line=Replace($Line, "$$", "")
+        $Line=Replace($Line, "?", "wscript.echo")
+        $Line=Replace($Line, "@@date", "date()")
+        $Line=Replace($Line, "@@crlf", "VbCrLf")
+
+        $LineLength=len($Line)
+
+        for $Counter=1 to $LineLength
+            $Character=substr($Line,$Counter,1)
+            select
+                case $Character='"' or $Character="'"
+                    $String=$String+'"'
+                    do
+                        if $Counter>=$LineLength
+                            $dst[$]=$String
+                            $=$+1
+                            $Line=$src[$]
+                            $String=''
+                            $Counter=0
+                            $LineLength=len($Line)
+                        endif
+                        do
+                            $Counter=$Counter+1
+                            $Character=substr($Line,$Counter,1)
+							if ($Character='"' or $Character="'")
+								$String=$String+'"'
+							else
+								$String=$String+$Character
+							endif
+                        until ($Character='"' or $Character="'") or $Counter=>$LineLength
+                    until $Character='"' or $=$u
+
+                case $Character="	" or $Character=" "
+                    $String=$String+$Character
+
+                case $Character="+"
+                    $String=$String+"&"
+
+                case $Character=";"
+                    $String=$String+"'"
+
+                case 1
+                	$t=""
+                    $bitDQ=0
+                    $bitSQ=0
+                    $TTP=""
+
+                    For $i=1 to $LineLength
+                        $Char=Substr($Line,$i,1)
+                        $TTP=$TTP+$Char
+                        Select
+                            Case $Char="'" and $bitDQ=1 and $bitSQ=1
+
+                            Case $Char='"' and $bitDQ=0 ;out of a dq block
+                                $bitDQ=1
+
+                            Case $Char="'" and $bitSQ=0 ;out of a sq block
+                                $bitSQ=1
+							
+                            Case $Char='"' and $bitDQ=1 ;in a dq block
+                                $bitDQ=0
+							
+                            Case $Char="'" and $bitSQ=1 ;in a sq block
+                                $bitSQ=0
+                        EndSelect
+                    Next
+
+                    do
+                        $t=$t+$Character
+                        $Counter=$Counter+1
+                        $Character=substr($Line,$Counter,1)
+                    until $Counter=>$LineLength+1;instr(" 	",$Character);
+                    $Counter=$Counter-1
+
+                	select
+                    	 case $t="_" or $t="then" or $t="wscript.echo"
+
+                        ; Remove Break On
+                         case Substr(Ltrim($t),1,2)="if"
+							$String=$String+$t+" then"
+							
+						case Substr(Ltrim($t),1,6)="elseif"
+							$String=$String+$t+" then"
+
+                         case Substr(Ltrim($t),1,8)="Break On"
+                            $t=Replace($t,"Break On","")
+                            $String=$String+$t ;+" ' VBC: Removed Break On"
+
+                         ; Global to Dim
+                         case Substr($t,len($t),1)=","
+							if (trim(Substr($t,len($t))) = ",")
+								$t = $t + " _"
+							endif
+                            $String=$String+$t
+							
+                         case Substr(Ltrim($t),1,6)="redim"
+						 	if (trim($t) = "redim")
+								$t= $t + " _"
+							endif
+                            $String=$String+$t
+						
+                         case Substr(Ltrim($t),1,3)="dim"
+							if (trim($t) = "dim")
+								$t= $t + " _"
+							endif
+                            $String=$String+$t
+						 
+                         case Substr(Ltrim($t),1,5)="while"
+                            $String=$String+"do "+$t
+                         case Substr(Ltrim($t),1,6)="global"
+                            $t=Replace($t,"global","Dim")
+                            if (trim($t) = "dim")
+								$t= $t + " _"
+							endif
+                            $String=$String+$t
+
+                    	 ; Add Set to objects
+                    	 Case instr($t,"CreateObject") or instr($t,"GetObject")
+                            $String=$String+"Set "+$t
+							
+						Case instr($t,"substr")
+							$t = replace($t, "substr", "mid")
+                            $String=$String+$t
+							
+						Case instr($t,"messagebox")
+							$t = replace($t, "messagebox", "msgbox")
+                            $String=$String+$t
+							
+						Case instr($t,"VarTypeName")
+							$t = replace($t, "VarTypeName", "TypeName")
+                            $String=$String+$t
+
+                    	 ; Handle Optionals
+                         Case Substr(Ltrim($t),1,6)="select"
+                            $String=$String+$t+" case true"
+						
+                         Case Substr(Ltrim($t),1,8)="Function"
+                            $t=Replace($t,"optional","")
+
+                            $String=$String+$t
+
+                    	 case $t="set"
+                            do
+                                $Counter=$Counter+1
+                                $Character=substr($Line,$Counter,1)
+                            until $Character<>" " and $Character<>"	"
+                            $Counter=$Counter-1
+                            $String=$String+"$$"
+
+                         case $t="quit"
+                            $String=$String+"wscript.quit"
+
+                    	 case $t="not 0"
+                            $String=$String+"true"
+
+                    	 case $t="not 1"
+                            $String=$String+"false"
+
+                    	 case Substr(Ltrim($t),1,9)="endselect"
+                            $String=$String+"end select"
+							
+                    	 case $t+substr($Line,$Counter,3)="endif"
+                            $String=$String+"end if"
+
+                    	 case 1
+                            $String=$String+$t
+                	endselect
+           endselect
+        next
+        $dst[$]=$String+@crlf
+    next
+
+    for $=0 to $u
+        $Counter=writeline($file,$dst[$]+@crlf)
+    next
+	
+	$Kix2Vbs = join($dst, "")
+endfunction

@@ -1,0 +1,28 @@
+break on
+include "..\KiXWithClass.udf"
+include "..\AlsArray.udf"
+$include_teste = IncludeClass("fbin", "..\FileBin.udf")
+$fbin = NewClass($include_teste)
+$path = "@curdir\favicon.ico"
+$path_o = "@curdir\favicon_teste.ico"
+
+if (exist($path_o))
+	del $path_o
+endif
+
+$t = @ticks
+"Lendo arquivo..."?
+$bin = $fbin.ReadBin($path)
+"Tamho em bytes : "ubound($bin)?
+"Arquivo lido!"??
+
+$bin = array_merge($bin, StringToByteArray("ola"))
+
+"Escrevendo arquivo..."?
+$fbin.WriteBin($path_o, $bin)
+"Arquivo escrito!"??
+@ticks - $t??
+
+get$
+; debug on
+; $fbin.WriteBin_append($path_o, StringToByteArray("Hello Brasil!!"))
